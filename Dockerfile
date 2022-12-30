@@ -24,7 +24,7 @@ COPY --from=nexus3.o-ran-sc.org:10002/o-ran-sc/bldr-alpine3-rmr:4.0.5 /usr/local
 ENV LD_LIBRARY_PATH /usr/local/lib/:/usr/local/lib64
 COPY tests/fixtures/local.rt /opt/route/local.rt
 ENV RMR_SEED_RT /opt/route/local.rt
-
+RUN pip install --force-reinstall redis==3.0.1
 
 # sdl needs gcc
 RUN apk update && apk add gcc musl-dev

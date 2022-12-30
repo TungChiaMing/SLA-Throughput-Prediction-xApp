@@ -24,6 +24,9 @@ RMR Messages:
 sends out type 30002 which should be routed to TS.
 
 """
+"""Ken QP xApp ML Enhanced
+    import pandas as pd
+"""
 import insert
 import os
 import json
@@ -33,10 +36,17 @@ from prediction import forecast
 from qptrain import train
 from database import DATABASE, DUMMY
 import warnings
+import pandas as pd
 warnings.filterwarnings("ignore")
 
+"""Ken QP xApp ML Enhanced
+    training_data_len_dict = {}
+"""
+training_data_len_dict = {}
 # pylint: disable=invalid-name
 qp_xapp = None
+Do_Prediction_One_time = False
+Do_Prediction_One_time_cnt = 0
 logger = Logger(name=__name__)
 
 
@@ -62,6 +72,8 @@ def qp_predict_handler(self, summary, sbuf):
     Function that processes messages for type 30000
     """
     logger.debug("predict handler received payload {}".format(summary[rmr.RMR_MS_PAYLOAD]))
+    
+   
     pred_msg = predict(summary[rmr.RMR_MS_PAYLOAD])
     self.predict_requests += 1
     # we don't use rts here; free this
@@ -85,30 +97,64 @@ def cells(ue):
     srvc = df.filter(regex='nrCell').values[0].tolist()
     return srvc+nbc
 
+"""Ken QP xApp ML Enhanced
+    db.read_data(meas='QP')
+    cell_list = db.data['nrCellIdentity'].drop_duplicates()
+    global training_data_len_dict
 
+"""
 def predict(payload):
     """
      Function that forecast the time series
     """
     tp = {}
+    global training_data_len_dict
+
+    global Do_Prediction_One_time
+    global Do_Prediction_One_time_cnt
     payload = json.loads(payload)
+    
     ueid = payload['UEPredictionSet'][0]
 
     cell_list = cells(ueid)
+    db.read_data(meas='QP')
+    cell_list = db.data['nrCellIdentity'].drop_duplicates()
+
     for cid in cell_list:
         mcid = cid.replace('/', '')
-        db.read_data(meas='liveCell', cellid=cid, limit=11)
+        db.read_data(meas='QP', cellid=cid, limit=11)
         if len(db.data) != 0:
-            inp = db.data
-
+            
+            """Ken QP xApp ML Enhanced
+                training_data_len_dict = {}
+                training_data_len = train(db, cid)
+                training_data_len_dict[cid] = training_data_len
+                db.read_data(meas='QP', cellid=cid, limit=training_data_len_dict[cid])
+                inp = db.data
+                nobs = 3 
+            """
             if not os.path.isfile('qp/' + mcid):
-                train(db, cid)
-
-            df_f = forecast(inp, mcid, 1)
+                training_data_len = train(db, cid)
+                training_data_len_dict[mcid] = training_data_len
+            db.read_data(meas='QP', cellid=cid, limit=training_data_len_dict[mcid])
+            inp = db.data.copy()
+         
+            df_f = forecast(inp, mcid, 3)
+            pdcpBytesDl =  inp[['nrCellIdentity','pdcpBytesDl']]
             if df_f is not None:
                 tp[cid] = df_f.values.tolist()[0]
                 df_f['cellid'] = cid
-                db.write_prediction(df_f)
+                df_pred =  df_f.rename(columns = {"pdcpBytesDl":"pdcpBytesDl_predict"})
+                df_pred = df_pred['pdcpBytesDl_predict'] 
+                df_pred_upload = pd.concat([pdcpBytesDl,df_pred],axis=1)
+                if (Do_Prediction_One_time_cnt >= len(cell_list)):
+                    Do_Prediction_One_time = True
+                else:
+                    Do_Prediction_One_time_cnt = Do_Prediction_One_time_cnt + 1
+                if(Do_Prediction_One_time == False):
+                    db.write_prediction(df_pred_upload, 'QP_Prediction')
+                
+                
             else:
                 tp[cid] = [None, None]
     return json.dumps({ueid: tp})

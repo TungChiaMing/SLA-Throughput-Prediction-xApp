@@ -19,27 +19,50 @@ import joblib
 import pandas as pd
 from qptrain import PROCESS
 
-
-def forecast(data, cid, nobs=1):
+"""Ken QP xApp ML Enhanced"""
+def forecast(data, cid, nobs=3):
     """
      forecast the time series using the saved model.
     """
-    data = data[['pdcpBytesUl', 'pdcpBytesDl']]
+    Training_Not_Predictable = False
     ps = PROCESS(data.copy())
-    ps.make_stationary()
+    predictable = ps.process(cid)
+    if predictable:
 
-    if not ps.valid():
-        df_f = data.tail(1)
-    elif os.path.isfile('qp/'+cid):
-        model = joblib.load('qp/'+cid)
-        pred = model.forecast(y=ps.data.values, steps=nobs)
-
-        if pred is not None:
-            df_f = pd.DataFrame(pred, columns=data.columns)
-            df_f.index = pd.date_range(start=data.index[-1], freq='10ms', periods=len(df_f))
-            df_f = df_f[data.columns].astype(int)
-            df_f = ps.invert_transformation(data, df_f)
+        if os.path.isfile('qp/'+cid):
+            print("========================Ken Debug============================")
+            print("why in the model using path exist?")
+            try:
+                model = joblib.load('qp/'+cid)
+                pred = model.forecast(steps=nobs)
+            except:
+                pred = []
+                for i in range(nobs):
+                    pred.append(ps.data['pdcpBytesDl'][0])
+                    df_f = pd.DataFrame(pred, columns=ps.data.columns)
+                    df_f.index = pd.date_range(start=ps.data.index[-1], freq='10ms', periods=len(df_f))
+                    Training_Not_Predictable = True                
+        else:
+            pred = []
+            for i in range(nobs):
+                pred.append(ps.data['pdcpBytesDl'][0])
+                df_f = pd.DataFrame(pred, columns=ps.data.columns)
+                df_f.index = pd.date_range(start=ps.data.index[-1], freq='10ms', periods=len(df_f))
+                Training_Not_Predictable = True
     else:
-        return None
-    df_f = df_f[data.columns].astype(int)
+        pred = []
+        for i in range(nobs):
+            pred.append(ps.data['pdcpBytesDl'][0])
+            df_f = pd.DataFrame(pred, columns=ps.data.columns)
+            df_f.index = pd.date_range(start=ps.data.index[-1], freq='10ms', periods=len(df_f))
+            Training_Not_Predictable = True
+    if Training_Not_Predictable is True:
+        pass
+    elif pred is not None:
+        df_f = pd.DataFrame(pred, columns=ps.data.columns)
+        df_f = ps.invert_transformation(ps.data, df_f, cid)
+    else:
+        pass
+    df_f = df_f[ps.data.columns].astype(int)
+ 
     return df_f

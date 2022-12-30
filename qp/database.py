@@ -22,13 +22,19 @@ import datetime
 class NoDataError(Exception):
     pass
 
-
+"""Ken QP xApp ML Enhanced
+    def switchdb(self, dbname):
+        print("Switch database: " + dbname)
+        self.client.switch_database(dbname)
+"""
 class DATABASE(object):
 
-    def __init__(self, dbname, user='root', password='root', host='r4-influxdb.ricplt', port='8086'):
+    def __init__(self, dbname, user='root', password='root', host='ricplt-influxdb.ricplt', port='8086'):
         self.client = DataFrameClient(host, port, user, password, dbname)
         self.data = None
-
+    def switchdb(self, dbname):
+        print("Switch database: " + dbname)
+        self.client.switch_database(dbname)
     def read_data(self, meas='ueMeasReport', limit=100000, cellid=False, ueid=False):
         query = """select * from """ + meas
 

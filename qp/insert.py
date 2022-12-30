@@ -25,13 +25,15 @@ import datetime
 
 
 class INSERTDATA:
-
+    """Ken QP xApp ML Enhanced
+       Create a new meas : QP_Prediction
+    """
     def __init__(self):
-        host = 'r4-influxdb.ricplt'
+        host = 'ricplt-influxdb.ricplt'
         self.client = DataFrameClient(host, '8086', 'root', 'root')
         self.switchdb('UEData')
         self.dropmeas('QP')
-
+        self.dropmeas('QP_Prediction')
     def switchdb(self, dbname):
         print("Switch database: " + dbname)
         self.client.switch_database(dbname)
@@ -71,9 +73,10 @@ def time(df):
 
 
 def populatedb():
-    df = pd.read_json('qp/cell.json.gz', lines=True)
-    df = df[['cellMeasReport']].dropna()
-    df = jsonToTable(df)
+    #df = pd.read_json('qp/cell.json.gz', lines=True)
+    #df = df[['cellMeasReport']].dropna()
+    #df = jsonToTable(df)
+    df = pd.read_csv('qp/MeasReport-cell-pdcp-b.csv')
     df = time(df)
     db = INSERTDATA()
-    db.client.write_points(df, 'liveCell', batch_size=500, protocol='line')
+    db.client.write_points(df, 'QP')#, batch_size=500, protocol='line')
