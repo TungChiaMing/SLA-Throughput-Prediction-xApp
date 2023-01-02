@@ -111,10 +111,11 @@ class PROCESS(object):
           return False
 
   def make_stationary(self, cell):
-    """ call adfuller_test() to check for stationary
-        If the column is stationary, perform 1st differencing and return data"""
-
+    """ Take first difference until data is stationary 
+    """
     df = self.data.copy()
+
+    # Do ADF Test in every columnm , adfuller_test will retrun a bool
     res_adf = []
     for name, column in df.iteritems():
       res_adf.append(self.adfuller_test(column))  # Perform ADF test
@@ -124,8 +125,8 @@ class PROCESS(object):
       #print(res_adf)
       #avg, dev = df.mean(), df.std()
       #df_norm = (df - avg) / dev
-      self.stationary_data = df.diff().dropna()
-      self.reverse.append(self.stationary_data)
+      self.stationary_data = df.diff().dropna() # take the first difference 
+      self.reverse.append(self.stationary_data) # store the reverse data, used for transforming to the orignal scale
       #plt.figure(figsize=(10,4))
       #plt.plot(self.stationary_data)
       #plt.title('====================Processed NR Cell throughput=======================', fontsize=18)
@@ -136,7 +137,9 @@ class PROCESS(object):
       res_adf_processed = self.adfuller_test(self.stationary_data)
       #print("====================adf after processed 1 =======================")
       #print(res_adf_processed)
-      self.diff =  self.diff + 1 
+      self.diff =  self.diff + 1
+
+      # take the first difference until the data is stationary 
       while not res_adf_processed:
         self.stationary_data = self.stationary_data.diff().dropna()
         self.reverse.append(self.stationary_data)
@@ -150,7 +153,7 @@ class PROCESS(object):
         #print(res_adf_processed) 
       #print("============================Debug===============================================")
       #print(self.diff) 
-      self.diff_time[cell] = self.diff
+      self.diff_time[cell] = self.diff # store the times we take difference for a cell
     else:
       self.stationary_data = df
       self.diff_time[cell] = self.diff
@@ -256,18 +259,20 @@ class PROCESS(object):
       self.pacf_calculate()
       return True
   def pacf_calculate(self):
+    """ Calculate the PACF
+    """
     self.cell_lag = len(self.stationary_data) // 2 -1
     #print("debug cell lag", self.cell_lag)
     #plot_pacf(self.stationary_data, lags=self.cell_lag)
     #plt.show()
     #print("====================Pacf Value=======================")
-    self.pacf_list = pacf(self.stationary_data,nlags=self.cell_lag)
+    self.pacf_list = pacf(self.stationary_data,nlags=self.cell_lag) # call pacf() to get every pacf of lag
     #print(self.pacf_list)
     avg, dev = self.stationary_data.mean(), self.stationary_data.std()
     df_norm = (self.stationary_data - avg) / dev
     confidence_interval_array = st.norm.interval(alpha=0.95,
                   loc=np.mean(df_norm),
-                  scale=st.sem(df_norm))
+                  scale=st.sem(df_norm)) # calculate 0.95 confidence interval to know which lag have the strong correlation with the current situation
     self.confidence_interval = abs(confidence_interval_array[0][0])  
   def valid(self):
     val = False
@@ -278,15 +283,19 @@ class PROCESS(object):
             val = True
     return val
   def ar_model_candidate(self):
-   
+    """ To pick out lag that have strong correlation with the current situation
+    """
     ar_order = -1
     for i in self.pacf_list:
       ar_order = ar_order + 1
-      if i!=1 and abs(i)>=self.confidence_interval:
-        self.ar_orders.append(ar_order)
+      if i!=1 and abs(i)>=self.confidence_interval: 
+        self.ar_orders.append(ar_order) # if the order of lag have  the strong correlation with the current situation , store it as the model candidate
       
 
   def find_optimal_lag(self):
+
+    """ Determine the max lag considered
+    """
     res = []
     if len(self.ar_orders) != 0 : 
       fitted_model_dict = {}
@@ -334,29 +343,28 @@ class PROCESS(object):
 """Ken QP xApp ML Enhanced"""
 def train(db, cid):
     """
-     Read the input file(based on cell id received from the main program)
-     call process() to forecast the downlink and uplink of the input cell id
-     Make a VAR model, call the fit method with the desired lag order.
+        fit An AR model for a cell by using the optimal lag
     """
     training_data_len = 0
     db.read_data(meas='QP', cellid=cid)
 
-    md = PROCESS(db.data)
+    md = PROCESS(db.data) # do 1.
     predictable = md.process(cid)
     
     training_data_len = len(md.data)
     if predictable:
-        md.pacf_calculate()
-        md.ar_model_candidate()
-        optimal_lag = md.find_optimal_lag()
+        md.pacf_calculate() # do 2.
+        md.ar_model_candidate() # do 2.
+        optimal_lag = md.find_optimal_lag() # do 3.
         try:
-            model = ARIMA(md.stationary_data, order=(optimal_lag,0))    # SVD did not converge  
+            model = ARIMA(md.stationary_data, order=(optimal_lag,0))    # do 4.  
             model_fit = model.fit() 
+        # if SVD did not converge  , use another best lag 
         except:
             for i in range(optimal_lag):
                 optimal_lag = optimal_lag - 1
                 try:
-                    model = ARIMA(md.stationary_data, order=(optimal_lag,0))    # SVD did not converge  
+                    model = ARIMA(md.stationary_data, order=(optimal_lag,0))    # do 4.
                     model_fit = model.fit()    
                     if model_fit is not None:
                         break
