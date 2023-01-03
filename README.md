@@ -1,5 +1,4 @@
-
-This xApp is based on osc ric-app-qp e-release https://github.com/o-ran-sc/ric-app-qp
+Modification is based on osc ric-app-qp branch e-release  https://github.com/o-ran-sc/ric-app-qp
 
 ## Rule must be follow
 - 1. The dummy data file needs to be a csv file, supposed to be generated from RIC Test
@@ -42,6 +41,8 @@ Note: All the procedure below is difference from qp xapp
     # Do ADF Test in every columnm , adfuller_test will retrun a bool
     res_adf = []
     for name, column in df.iteritems():
+
+      # adfuller_test() is using the souce code from osc ric-app-qp
       res_adf.append(self.adfuller_test(column))  # Perform ADF test
     self.diff = 0
     if not all(res_adf):

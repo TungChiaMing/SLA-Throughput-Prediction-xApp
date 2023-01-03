@@ -118,6 +118,8 @@ class PROCESS(object):
     # Do ADF Test in every columnm , adfuller_test will retrun a bool
     res_adf = []
     for name, column in df.iteritems():
+
+      # adfuller_test() is using the souce code from osc ric-app-qp
       res_adf.append(self.adfuller_test(column))  # Perform ADF test
     self.diff = 0
     if not all(res_adf):
