@@ -1,4 +1,4 @@
-Modification is based on osc ric-app-qp branch e-release  https://github.com/o-ran-sc/ric-app-qp
+Modification below is based on osc ric-app-qp branch e-release  https://github.com/o-ran-sc/ric-app-qp
 
 ## Rule must be follow
 - 1. The dummy data file needs to be a csv file, supposed to be generated from RIC Test
