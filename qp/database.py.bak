@@ -62,14 +62,9 @@ class DATABASE(object):
                 print('Data not found for ' + meas)
             pass
 
-    def write_prediction(self, df, meas_name='QP',pred=False):
-        if pred == True:
-            df.index = pd.date_range(start=datetime.datetime.now(), freq='1s', periods=len(df))
-            self.client.write_points(df, meas_name)
-            #print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Sucessfully Write 1s!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-        else:
-            df.index = pd.date_range(start=datetime.datetime.now(), freq='10ms', periods=len(df))
-            self.client.write_points(df, meas_name)
+    def write_prediction(self, df, meas_name='QP'):
+        df.index = pd.date_range(start=datetime.datetime.now(), freq='10ms', periods=len(df))
+        self.client.write_points(df, meas_name)
 
 
 class DUMMY:

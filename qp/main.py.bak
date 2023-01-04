@@ -71,19 +71,15 @@ def qp_predict_handler(self, summary, sbuf):
     """
     Function that processes messages for type 30000
     """
-    #logger.debug("predict handler received payload {} from sla-spa".format(summary[rmr.RMR_MS_PAYLOAD]))
-
-    logger.debug("predict handler received messages from sla-spa")
-        
+    logger.debug("predict handler received payload {}".format(summary[rmr.RMR_MS_PAYLOAD]))
+    
    
     pred_msg = predict(summary[rmr.RMR_MS_PAYLOAD])
     self.predict_requests += 1
     # we don't use rts here; free this
     self.rmr_free(sbuf)
     success = self.rmr_send(pred_msg.encode(), 30002)
-    #logger.debug("Sending message to sla-spa : {}".format(pred_msg))  # For debug purpose
-
-    logger.debug("Sending response to sla-spa")  # For debug purpose
+    logger.debug("Sending message to ts : {}".format(pred_msg))  # For debug purpose
     if success:
         logger.debug("predict handler: sent message successfully")
     else:
@@ -122,18 +118,11 @@ def predict(payload):
 
     cell_list = cells(ueid)
     db.read_data(meas='QP')
-    logger.debug("Read Cell Data from InfluxDB...")
     cell_list = db.data['nrCellIdentity'].drop_duplicates()
-    nobs = 10
 
-    
     for cid in cell_list:
         mcid = cid.replace('/', '')
-        #print("******************Debug mcid in cell list*********************")
-        logger.debug("Start Throughput Prediction")
-        logger.debug("Cell ID {}".format(cid))
-        #print(cid)
-        db.read_data(meas='QP', cellid=cid)
+        db.read_data(meas='QP', cellid=cid, limit=11)
         if len(db.data) != 0:
             
             """Ken QP xApp ML Enhanced
@@ -142,42 +131,28 @@ def predict(payload):
                 training_data_len_dict[cid] = training_data_len
                 db.read_data(meas='QP', cellid=cid, limit=training_data_len_dict[cid])
                 inp = db.data
-                nobs = 10
+                nobs = 3 
             """
             if not os.path.isfile('qp/' + mcid):
                 training_data_len = train(db, cid)
                 training_data_len_dict[mcid] = training_data_len
             db.read_data(meas='QP', cellid=cid, limit=training_data_len_dict[mcid])
             inp = db.data.copy()
-
-            for pdcp in inp['pdcpBytesDl']:
-            	logger.debug("Historical pdcpBytesDl is {}".format(pdcp))
-            df_f = forecast(inp, cid, nobs)
-            #print("**************************Debug forecast value**************************")
-            #print(df_f['pdcpBytesDl'])
+         
+            df_f = forecast(inp, mcid, 3)
             pdcpBytesDl =  inp[['nrCellIdentity','pdcpBytesDl']]
             if df_f is not None:
                 tp[cid] = df_f.values.tolist()[0]
                 df_f['cellid'] = cid
                 df_pred =  df_f.rename(columns = {"pdcpBytesDl":"pdcpBytesDl_predict"})
-                #print("**************************Rename value**************************")
-                
-                #df_pred = df_pred[['pdcpBytesDl_predict']] 
-                for pdcp in df_pred['pdcpBytesDl_predict']:
-                    logger.debug("Predicted pdcpBytesDl is {}".format(pdcp))
-                logger.debug("Complete Throughput Prediction")
-                logger.debug("Update the InfluxDB...")
-                #print(df_pred)
+                df_pred = df_pred['pdcpBytesDl_predict'] 
                 df_pred_upload = pd.concat([pdcpBytesDl,df_pred],axis=1)
-                df_pred_upload['nrCellIdentity'][-10:] = cid
-                #print("**************************Upload value**************************")
-                #print(df_pred_upload)
                 if (Do_Prediction_One_time_cnt >= len(cell_list)):
                     Do_Prediction_One_time = True
                 else:
                     Do_Prediction_One_time_cnt = Do_Prediction_One_time_cnt + 1
                 if(Do_Prediction_One_time == False):
-                    db.write_prediction(df_pred_upload, 'QP_Prediction',pred=True)
+                    db.write_prediction(df_pred_upload, 'QP_Prediction')
                 
                 
             else:
@@ -196,7 +171,6 @@ def start(thread=False):
     global db
     if not thread:
         insert.populatedb()   # temporory method to popuate db, it will be removed when data will be coming through KPIMON to influxDB
-        logger.debug("Populate Dummy Cell Data to InfluxDB")
         db = DATABASE('UEData')
     else:
         db = DUMMY()

@@ -20,42 +20,28 @@ import pandas as pd
 from qptrain import PROCESS
 
 """Ken QP xApp ML Enhanced"""
-def forecast(data, cid, nobs=10):
+def forecast(data, cid, nobs=3):
     """
      forecast the time series using the saved model.
     """
     Training_Not_Predictable = False
     ps = PROCESS(data.copy())
-    
     predictable = ps.process(cid)
-    file_name = 'qp/'+cid.replace('/', '')
     if predictable:
-        
-        if os.path.isfile(file_name):
-            """
+
+        if os.path.isfile('qp/'+cid):
             print("========================Ken Debug============================")
             print("why in the model using path exist?")
             try:
-                model = joblib.load(file_name)
+                model = joblib.load('qp/'+cid)
                 pred = model.forecast(steps=nobs)
-                print("**************************prediction.py******value**************************")
-                print(pred[0])
-                if pred is not None:
-                    df_f = pd.DataFrame(pred[0], columns=ps.data.columns)
-                    df_f = ps.invert_transformation(ps.data, df_f, cid)
-                    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Prediction Sucessful!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-                    #print("**************************prediction.py******value**************************")
-                    #print(pred[0])
             except:
                 pred = []
                 for i in range(nobs):
                     pred.append(ps.data['pdcpBytesDl'][0])
                     df_f = pd.DataFrame(pred, columns=ps.data.columns)
                     df_f.index = pd.date_range(start=ps.data.index[-1], freq='10ms', periods=len(df_f))
-                    #Training_Not_Predictable = True                
-            """
-            model = joblib.load(file_name)
-            pred = model.forecast(steps=nobs)
+                    Training_Not_Predictable = True                
         else:
             pred = []
             for i in range(nobs):
@@ -63,9 +49,6 @@ def forecast(data, cid, nobs=10):
                 df_f = pd.DataFrame(pred, columns=ps.data.columns)
                 df_f.index = pd.date_range(start=ps.data.index[-1], freq='10ms', periods=len(df_f))
                 Training_Not_Predictable = True
-         
-
- 
     else:
         pred = []
         for i in range(nobs):
@@ -76,14 +59,10 @@ def forecast(data, cid, nobs=10):
     if Training_Not_Predictable is True:
         pass
     elif pred is not None:
-        df_f = pd.DataFrame(pred[0], columns=ps.data.columns)
+        df_f = pd.DataFrame(pred, columns=ps.data.columns)
         df_f = ps.invert_transformation(ps.data, df_f, cid)
     else:
         pass
     df_f = df_f[ps.data.columns].astype(int)
-
-
-
-
-
+ 
     return df_f
