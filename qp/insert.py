@@ -71,7 +71,8 @@ def time(df):
     df['measTimeStampRf'] = df['measTimeStampRf'].apply(lambda x: str(x))
     return df
 
-
+"""Ken QP xApp ML Enhanced , read the dummy csv file , and also write the new point , QP
+"""
 def populatedb():
     #df = pd.read_json('qp/cell.json.gz', lines=True)
     #df = df[['cellMeasReport']].dropna()

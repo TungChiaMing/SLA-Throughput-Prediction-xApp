@@ -32,40 +32,19 @@ def forecast(data, cid, nobs=10):
     if predictable:
         
         if os.path.isfile(file_name):
-            """
-            print("========================Ken Debug============================")
-            print("why in the model using path exist?")
-            try:
-                model = joblib.load(file_name)
-                pred = model.forecast(steps=nobs)
-                print("**************************prediction.py******value**************************")
-                print(pred[0])
-                if pred is not None:
-                    df_f = pd.DataFrame(pred[0], columns=ps.data.columns)
-                    df_f = ps.invert_transformation(ps.data, df_f, cid)
-                    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Prediction Sucessful!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-                    #print("**************************prediction.py******value**************************")
-                    #print(pred[0])
-            except:
-                pred = []
-                for i in range(nobs):
-                    pred.append(ps.data['pdcpBytesDl'][0])
-                    df_f = pd.DataFrame(pred, columns=ps.data.columns)
-                    df_f.index = pd.date_range(start=ps.data.index[-1], freq='10ms', periods=len(df_f))
-                    #Training_Not_Predictable = True                
-            """
+
             model = joblib.load(file_name)
             pred = model.forecast(steps=nobs)
         else:
             pred = []
             for i in range(nobs):
-                pred.append(ps.data['pdcpBytesDl'][0])
+                pred.append(ps.data['pdcpBytesDl'][0]) # append timestamp
                 df_f = pd.DataFrame(pred, columns=ps.data.columns)
                 df_f.index = pd.date_range(start=ps.data.index[-1], freq='10ms', periods=len(df_f))
                 Training_Not_Predictable = True
          
 
- 
+    # if it's not predictable, just remain the same value
     else:
         pred = []
         for i in range(nobs):
@@ -81,9 +60,5 @@ def forecast(data, cid, nobs=10):
     else:
         pass
     df_f = df_f[ps.data.columns].astype(int)
-
-
-
-
 
     return df_f

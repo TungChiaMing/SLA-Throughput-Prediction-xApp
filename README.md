@@ -166,7 +166,7 @@ def train(db, cid):
     training_data_len = len(md.data)
     if predictable:
         md.pacf_calculate() # do 2.
-        md.ar_model_candidate() # do 2.
+        md.ar_model_candidate() # do 3.
         optimal_lag = md.find_optimal_lag() # do 3.
         try:
             model = ARIMA(md.stationary_data, order=(optimal_lag,0))  # do 4.

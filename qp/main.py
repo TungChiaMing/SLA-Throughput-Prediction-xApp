@@ -114,7 +114,9 @@ def predict(payload):
     tp = {}
     global training_data_len_dict
 
-    global Do_Prediction_One_time
+    # we'll just upload one time, recall that ts xapp will
+    # continuously send predict req to here
+    global Do_Prediction_One_time 
     global Do_Prediction_One_time_cnt
     payload = json.loads(payload)
     
@@ -124,26 +126,17 @@ def predict(payload):
     db.read_data(meas='QP')
     logger.debug("Read Cell Data from InfluxDB...")
     cell_list = db.data['nrCellIdentity'].drop_duplicates()
-    nobs = 10
+    nobs = 10 # predict next ten timestamp
 
     
     for cid in cell_list:
         mcid = cid.replace('/', '')
-        #print("******************Debug mcid in cell list*********************")
         logger.debug("Start Throughput Prediction")
         logger.debug("Cell ID {}".format(cid))
         #print(cid)
         db.read_data(meas='QP', cellid=cid)
         if len(db.data) != 0:
-            
-            """Ken QP xApp ML Enhanced
-                training_data_len_dict = {}
-                training_data_len = train(db, cid)
-                training_data_len_dict[cid] = training_data_len
-                db.read_data(meas='QP', cellid=cid, limit=training_data_len_dict[cid])
-                inp = db.data
-                nobs = 10
-            """
+        
             if not os.path.isfile('qp/' + mcid):
                 training_data_len = train(db, cid)
                 training_data_len_dict[mcid] = training_data_len
@@ -151,13 +144,15 @@ def predict(payload):
             inp = db.data.copy()
 
             for pdcp in inp['pdcpBytesDl']:
-            	logger.debug("Historical pdcpBytesDl is {}".format(pdcp))
+                logger.debug("Historical pdcpBytesDl is {}".format(pdcp))
+            # forecast pdcp , if model doesn't exist, train the model
             df_f = forecast(inp, cid, nobs)
-            #print("**************************Debug forecast value**************************")
-            #print(df_f['pdcpBytesDl'])
+
             pdcpBytesDl =  inp[['nrCellIdentity','pdcpBytesDl']]
+
+            
             if df_f is not None:
-                tp[cid] = df_f.values.tolist()[0]
+                tp[cid] = df_f.values.tolist()[0] # predicted message for ts xapp
                 df_f['cellid'] = cid
                 df_pred =  df_f.rename(columns = {"pdcpBytesDl":"pdcpBytesDl_predict"})
                 #print("**************************Rename value**************************")
@@ -168,10 +163,13 @@ def predict(payload):
                 logger.debug("Complete Throughput Prediction")
                 logger.debug("Update the InfluxDB...")
                 #print(df_pred)
-                df_pred_upload = pd.concat([pdcpBytesDl,df_pred],axis=1)
+                # upload original pdcp trend & predicted pdcp trend
+                df_pred_upload = pd.concat([pdcpBytesDl,df_pred],axis=1) # df prepared to upload to influxDB
                 df_pred_upload['nrCellIdentity'][-10:] = cid
                 #print("**************************Upload value**************************")
                 #print(df_pred_upload)
+
+                # making the upload only one time
                 if (Do_Prediction_One_time_cnt >= len(cell_list)):
                     Do_Prediction_One_time = True
                 else:
